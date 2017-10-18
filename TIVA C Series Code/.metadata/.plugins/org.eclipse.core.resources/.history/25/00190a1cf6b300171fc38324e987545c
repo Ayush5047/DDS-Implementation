@@ -1,0 +1,51 @@
+/*****************************************************************
+ * SecondDraft
+ * This file is created to test code for low frequency waves
+ * Wave: Square,Sine,Ramp,Triangle Wave
+ * Frequency 100Hz
+ * DAC 8 bit Therefore values will range from 0-255
+ * Zero Value 127
+ * Full Scale Value 127
+ * No of samples 1000
+ * Created: 18/10/2017 3:02 PM
+ * Author : Ayush Gaurav
+ * B-Tech Final Year
+ * ECED
+ * MNNIT Allahabad
+ ****************************************************************/
+
+
+/**** macro definitions ******************/
+
+#define F_CPU           16000000UL
+#define DACBit          8
+#define ZeroVal         127
+#define FullScaleVal    127
+#define NumberOfSampleBits 8
+#define NumberOfSamples (1<<NumberOfSampleBits)
+
+
+/*** All the required header files********/
+#include"lcd.h"
+#include<math.h>
+/************* function declarartions*******/
+void portInit();
+void calculateSamples();
+void calculateSamplesSquare();
+void calculateSamplesSine();
+void calculateSamplesTriangle();
+void calculateSamplesRamp();
+
+/****** Array for Samples *****************/
+volatile unsigned char samples[NumberOfSamples];
+
+/***********Global Declaration*************/
+uint32_t phaseAccumulatorReg;
+uint32_t frequencyReg;
+
+
+
+int main(void) {
+	
+	return 0;
+}

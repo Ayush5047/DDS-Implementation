@@ -20,7 +20,7 @@
 #define DACBit			8
 #define ZeroVal			127
 #define FullScaleVal	127
-#define NumberOfSampleBits 10
+#define NumberOfSampleBits 8
 #define NumberOfSamples (1<<NumberOfSampleBits)
 
 
@@ -49,15 +49,16 @@ int main(void){
     calculateSamples();
 	portInit();
 	phaseAccumulatorReg=0;
-	frequencyReg=3000;
+	frequencyReg=12583;
+	lcdInteger(frequencyReg);
 	while (1){
-		PORTB=~PORTB;
+		//It takes 3 micro seconds for 1 sample.
+		//frequencyReg=0xf00000 gives 1250 Hz CLK(800us)
+		//frequencyReg=0x800000 gives 666.667 Hz CLK(1500us)
+		//frequencyReg=0x080000 gives  40Hz CLK(25ms)
+		//frequencyReg=12583;
+		PORTA=samples[phaseAccumulatorReg>>24];
 		phaseAccumulatorReg=phaseAccumulatorReg+frequencyReg;
-		//PORTA=samples[phaseAccumulatorReg>>(sizeof(phaseAccumulatorReg)-NumberOfSampleBits)];
-		lcdGotoxy(0,0);
-		lcdInteger(phaseAccumulatorReg);
-		_delay_ms(500);
-		//PORTA=samples[phaseAccumulatorReg>>22];
 	}
 }
 
