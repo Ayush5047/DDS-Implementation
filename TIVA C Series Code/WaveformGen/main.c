@@ -16,42 +16,36 @@
 
 /**** macro definitions ******************/
 
-#define DACBit          8
-#define ZeroVal         127
-#define FullScaleVal    127
-#define NumberOfSampleBits 8
-#define NumberOfSamples (1<<NumberOfSampleBits)
-
+#define DACBit              8
+#define ZeroVal             127
+#define FullScaleVal        127
+#define NumberOfSampleBits  8
+#define NumberOfSamples     (1<<NumberOfSampleBits)
+#define oneHertzValue       2368
 
 #ifndef     lcdPORT
-#define     lcdPORT     GPIO_PORTB_BASE
+#define     lcdPORT         GPIO_PORTE_BASE
 #endif
 #ifndef     lcdDDR
-#define     lcdDDR      GPIO_PORTB_BASE
-#endif
-#ifndef     lcdPIN
-#define     lcdPIN      PINC
+#define     lcdDDR          GPIO_PORTE_BASE
 #endif
 #ifndef     RS
-#define     RS          GPIO_PIN_0
-#endif
-#ifndef     RW
-#define     RW          GPIO_PIN_1
+#define     RS              GPIO_PIN_0
 #endif
 #ifndef     EN
-#define     EN          GPIO_PIN_2
+#define     EN              GPIO_PIN_1
 #endif
 #ifndef     D4
-#define     D4          GPIO_PIN_4
+#define     D4              GPIO_PIN_2
 #endif
 #ifndef     D5
-#define     D5          GPIO_PIN_5
+#define     D5              GPIO_PIN_3
 #endif
 #ifndef     D6
-#define     D6          GPIO_PIN_6
+#define     D6              GPIO_PIN_4
 #endif
 #ifndef     D7
-#define     D7          GPIO_PIN_7
+#define     D7              GPIO_PIN_5
 #endif
 
 /*** All the required header files********/
@@ -74,7 +68,7 @@ void lcdString(char*);
 void lcdGotoxy(unsigned char,unsigned char);
 void lcdClear();
 void lcdCheck();
-//void lcdInteger(long long int);
+void lcdInteger(long long int);
 void _delay_ms(uint64_t delay);
 void _delay_us(uint64_t delay);
 void func(long long a,char *arr);
@@ -93,23 +87,20 @@ volatile unsigned char samples[NumberOfSamples];
 uint32_t phaseAccumulatorReg;
 uint32_t frequencyReg;
 
-int main(void) {
+  int main(void) {
     calculateSamples();
     portInit();
     phaseAccumulatorReg=0;
-    frequencyReg=12583;
-    unsigned char s;
+    frequencyReg=oneHertzValue*1000000;
     while(1){
-        //s=samples[phaseAccumulatorReg>>24];
-        GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>24]);
-        phaseAccumulatorReg=phaseAccumulatorReg+frequencyReg;
+        GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)]);
+        phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
 	}
 }
 void portInit(){
     SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, 0xff);
-
 }
 void calculateSamples(){
     //calculateSamplesSquare();
@@ -141,7 +132,7 @@ void calculateSamplesTriangle(){
     }
 }
 void lcdInit(){
-    GPIOPinTypeGPIOOutput(lcdPORT, RS|RW|EN|D4|D5|D6|D7);
+    GPIOPinTypeGPIOOutput(lcdPORT,RS|EN|D4|D5|D6|D7);
     lcdCommand(0x02);//get the cursor to home
     lcdCommand(0x28);
     /**************************
@@ -160,50 +151,35 @@ void lcdInit(){
     *********************************/
 }
 void lcdCommand(unsigned char command){
-    GPIOPinWrite(lcdPORT,RS|RW|EN|D4|D5|D6|D7,0);
-    //lcdPORT=0;
+    GPIOPinWrite(lcdPORT,RS|EN|D4|D5|D6|D7,0);
     _delay_ms(1);
-    //GPIOPinWrite(lcdPORT,RS|RW|EN|D4|D5|D6|D7,0xf0&command);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command);
-    //lcdPORT=(0xf0&command);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command>>2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|RW|EN,0x04);
-    //lcdPORT|=(0<<RS)|(0<<RW)|(1<<EN);
+    GPIOPinWrite(lcdPORT,RS|EN,0x02);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
-    //lcdPORT&=~(1<<EN);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command<<4);
-    //lcdPORT=(0x0f&command)<<4;
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command<<2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|RW|EN,0x04);
-    //lcdPORT|=(0<<RS)|(0<<RW)|(1<<EN);
+    GPIOPinWrite(lcdPORT,RS|EN,0x02);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
-  //lcdPORT&=~(1<<EN);
     _delay_us(100);
 }
 void lcdData(unsigned char data){
     lcdCheck();
-    GPIOPinWrite(lcdPORT,RS|RW|EN|D4|D5|D6|D7,0);
-    //lcdPORT=0;
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data);
-    //lcdPORT=(0xf0&data);
+    GPIOPinWrite(lcdPORT,RS|EN|D4|D5|D6|D7,0);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data>>2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|RW|EN,0x05);
-    //lcdPORT|=(0<<RW)|(1<<EN)|(1<<RS);
+    GPIOPinWrite(lcdPORT,RS|EN,0x03);
     _delay_ms(1);
     GPIOPinWrite(lcdPORT,EN,0);
-    //lcdPORT&=~(1<<EN);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data<<4);
-    //lcdPORT=(0x0f&(data))<<4;
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data<<2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|RW|EN,0x05);
-    //lcdPORT|=(0<<RW)|(1<<EN)|(1<<RS);
+    GPIOPinWrite(lcdPORT,RS|EN,0x03);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
-    //lcdPORT&=~(1<<EN);
     cursorPositionCheck=(cursorPositionCheck+1)%32;
 }
 void lcdString(char* string){
@@ -216,8 +192,7 @@ void lcdInteger(long long int integer){
     func(integer,ch);
     lcdString(ch);
 }
-void lcdGotoxy(unsigned char x,unsigned char y)
-{
+void lcdGotoxy(unsigned char x,unsigned char y){
     cursorPositionCheck=y*16+x;
     lcdCommand(0x80+x+(64*y));
 }
@@ -238,24 +213,20 @@ void _delay_ms(uint64_t delay){
 void _delay_us(uint64_t delay){
     SysCtlDelay(delay*(SysCtlClockGet()/3000000UL));
 }
-void func(long long a,char *arr)
-{
+void func(long long a,char *arr){
     int i=0,j=0;
     long long tmp=a;
-    if(a<0)
-        {
+    if(a<0){
             arr[i++]='-';
             tmp*=-1;
             j=1;
         }
-    for(;tmp>0;i++)
-    {
+    for(;tmp>0;i++){
         arr[i]=(tmp%10)+'0';
         tmp/=10;
     }
     arr[i--]='\0';
-    for(;j<i;j++,i--)
-    {
+    for(;j<i;j++,i--){
             tmp=arr[i];
             arr[i]=arr[j];
             arr[j]=tmp;
