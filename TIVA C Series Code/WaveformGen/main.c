@@ -58,6 +58,7 @@
 #include "inc/hw_gpio.h"
 #include<math.h>
 
+
 /************* function declarartions*******/
 unsigned char cursorPositionCheck=0;
 void lcdInit();
@@ -84,18 +85,23 @@ void calculateSamplesRamp();
 volatile unsigned char samples[NumberOfSamples];
 
 /***********Global Declaration*************/
-uint32_t phaseAccumulatorReg;
-uint32_t frequencyReg;
-
-  int main(void) {
+unsigned long int phaseAccumulatorReg;
+unsigned long int frequencyReg;
+unsigned long int frequencyVariable=0;
+int main(void) {
+    lcdInit();
+    lcdClear();
+    lcdGotoxy(1,0);
+    lcdString("Wave Rider 1.0");
+    _delay_ms(1000);
     calculateSamples();
     portInit();
     phaseAccumulatorReg=0;
-    frequencyReg=oneHertzValue*1000000;
+    frequencyReg=oneHertzValue*frequencyVariable;
     while(1){
         GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)]);
         phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
-	}
+    }
 }
 void portInit(){
     SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
@@ -128,10 +134,11 @@ void calculateSamplesRamp(){
 void calculateSamplesTriangle(){
     uint16_t i=0;
     for(;i<NumberOfSamples;i++){
-        samples[i]=i<125?i*2:(500-2*i);
+        samples[i]=i<128?i*2:(510-2*i);
     }
 }
 void lcdInit(){
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
     GPIOPinTypeGPIOOutput(lcdPORT,RS|EN|D4|D5|D6|D7);
     lcdCommand(0x02);//get the cursor to home
     lcdCommand(0x28);
