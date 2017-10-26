@@ -1,7 +1,7 @@
 ******************************************************************************
                   TI ARM Linker PC v16.9.1                     
 ******************************************************************************
->> Linked Thu Oct 26 20:30:49 2017
+>> Linked Thu Oct 26 21:08:00 2017
 
 OUTPUT FILE NAME:   <WaveformGen.out>
 ENTRY POINT SYMBOL: "_c_int00"  address: 000025a5
@@ -251,8 +251,8 @@ ffffffff  __c_args__
 20000000  __stack                        
 000027e9  _args_main                     
 000025a5  _c_int00                       
-00001355  _delay_ms                      
-00001371  _delay_us                      
+00001173  _delay_ms                      
+0000118f  _delay_us                      
 20000314  _lock                          
 0000280f  _nop                           
 00002807  _register_lock                 
@@ -262,11 +262,11 @@ ffffffff  __c_args__
 20000318  _unlock                        
 000025fd  abort                          
 ffffffff  binit                          
-00000fe1  calculateSamples               
-00001097  calculateSamplesRamp           
-0000102f  calculateSamplesSine           
-00000fe9  calculateSamplesSquare         
-000010cf  calculateSamplesTriangle       
+0000130d  calculateSamples               
+000013c9  calculateSamplesRamp           
+00001361  calculateSamplesSine           
+00001315  calculateSamplesSquare         
+00001401  calculateSamplesTriangle       
 0000264d  copy_in                        
 00002815  copysign                       
 00002815  copysignl                      
@@ -277,24 +277,24 @@ ffffffff  binit
 000020bd  floorl                         
 20000300  frequencyReg                   
 20000320  frequencyVariable              
-000013ad  func                           
+000011a9  func                           
 00000000  g_pfnVectors                   
-00001331  lcdCheck                       
-00001311  lcdClear                       
-00001149  lcdCommand                     
-000011d9  lcdData                        
-000012dd  lcdGotoxy                      
-0000111f  lcdInit                        
-0000129f  lcdInteger                     
-00001273  lcdString                      
+0000114f  lcdCheck                       
+00001137  lcdClear                       
+00000f93  lcdCommand                     
+00001023  lcdData                        
+00001107  lcdGotoxy                      
+00000f69  lcdInit                        
+000010e9  lcdInteger                     
+000010bd  lcdString                      
 00001fc1  ldexp                          
 00001fc1  ldexpl                         
-00000f69  main                           
+00001295  main                           
 20000328  main_func_sp                   
 000022a9  memcpy                         
 00002459  memset                         
 20000304  phaseAccumulatorReg            
-00000fc9  portInit                       
+000012f5  portInit                       
 20000200  samples                        
 00001fc1  scalbn                         
 00001fc1  scalbnl                        
@@ -312,24 +312,24 @@ address   name
 0000026d  __kernel_rem_pio2              
 000009a5  sin                            
 000009a5  sinl                           
-00000f69  main                           
-00000fc9  portInit                       
-00000fe1  calculateSamples               
-00000fe9  calculateSamplesSquare         
-0000102f  calculateSamplesSine           
-00001097  calculateSamplesRamp           
-000010cf  calculateSamplesTriangle       
-0000111f  lcdInit                        
-00001149  lcdCommand                     
-000011d9  lcdData                        
-00001273  lcdString                      
-0000129f  lcdInteger                     
-000012dd  lcdGotoxy                      
-00001311  lcdClear                       
-00001331  lcdCheck                       
-00001355  _delay_ms                      
-00001371  _delay_us                      
-000013ad  func                           
+00000f69  lcdInit                        
+00000f93  lcdCommand                     
+00001023  lcdData                        
+000010bd  lcdString                      
+000010e9  lcdInteger                     
+00001107  lcdGotoxy                      
+00001137  lcdClear                       
+0000114f  lcdCheck                       
+00001173  _delay_ms                      
+0000118f  _delay_us                      
+000011a9  func                           
+00001295  main                           
+000012f5  portInit                       
+0000130d  calculateSamples               
+00001315  calculateSamplesSquare         
+00001361  calculateSamplesSine           
+000013c9  calculateSamplesRamp           
+00001401  calculateSamplesTriangle       
 00001499  __aeabi_ldivmod                
 000016b7  __aeabi_dsub                   
 000016c1  __aeabi_dadd                   

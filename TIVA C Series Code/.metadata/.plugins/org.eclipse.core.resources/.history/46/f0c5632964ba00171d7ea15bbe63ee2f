@@ -33,13 +33,16 @@
 #include "driverlib/gpio.h"
 #include "inc/hw_gpio.h"
 #include <math.h>
-#include "driverlib/adc.h"
 #include "lcd.h"
 #include "samples.h"
 
 /************* function declarartions*******/
 void portInit();
 void calculateSamples();
+void calculateSamplesSquare();
+void calculateSamplesSine();
+void calculateSamplesTriangle();
+void calculateSamplesRamp();
 
 /****** Array for Samples *****************/
 volatile unsigned char samples[NumberOfSamples];
@@ -73,4 +76,27 @@ void calculateSamples(){
     calculateSamplesSine();
     //calculateSamplesTriangle();
     //calculateSamplesRamp();
+}
+void calculateSamplesSquare(){
+    uint16_t i=0;
+    for(;i<NumberOfSamples;i++)
+        samples[i]=(i<(NumberOfSamples/2)?-127:128)+127;
+}
+void calculateSamplesSine(){
+    uint16_t i=0;
+    for(;i<NumberOfSamples;i++){
+        samples[i]=(unsigned char)(sin(i*6.28/NumberOfSamples)*127+127);
+    }
+}
+void calculateSamplesRamp(){
+    uint16_t i=0;
+    for(;i<NumberOfSamples;i++){
+        samples[i]=i;
+    }
+}
+void calculateSamplesTriangle(){
+    uint16_t i=0;
+    for(;i<NumberOfSamples;i++){
+        samples[i]=i<128?i*2:(510-2*i);
+    }
 }
