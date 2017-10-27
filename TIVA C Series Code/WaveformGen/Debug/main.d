@@ -11,7 +11,14 @@ main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/inc/hw_gpio.h
 main.obj: C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/math.h
 main.obj: C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/linkage.h
 main.obj: C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/_defs.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/adc.h
 main.obj: ../lcd.h
+main.obj: ../samples.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/uart.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/pin_map.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/debug.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/interrupt.h
+main.obj: C:/ti/TivaWare_C_Series-2.1.4.178/inc/tm4c123gh6pm.h
 
 ../main.c: 
 C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/stdint.h: 
@@ -24,4 +31,11 @@ C:/ti/TivaWare_C_Series-2.1.4.178/inc/hw_gpio.h:
 C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/math.h: 
 C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/linkage.h: 
 C:/ti/ccsv7/tools/compiler/ti-cgt-arm_16.9.1.LTS/include/_defs.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/adc.h: 
 ../lcd.h: 
+../samples.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/uart.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/pin_map.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/debug.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/driverlib/interrupt.h: 
+C:/ti/TivaWare_C_Series-2.1.4.178/inc/tm4c123gh6pm.h: 
