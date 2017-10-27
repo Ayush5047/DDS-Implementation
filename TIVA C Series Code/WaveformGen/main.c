@@ -68,10 +68,14 @@ void userInterface();
 volatile unsigned char samples[NumberOfSamples];
 volatile unsigned char waveMode=0;
 volatile unsigned char frequencyMode=0;
+volatile unsigned char frequencyModeChangeLarge=0;
+volatile unsigned char frequencyModeChangeFine=0;
+volatile unsigned char interruptTriggered=0;
 /***********Global Declaration*************/
-unsigned long int phaseAccumulatorReg;
+unsigned int phaseAccumulatorReg;
 unsigned long int frequencyReg;
-unsigned long int frequencyVariable=100;
+unsigned long int frequencyVariable=0;
+unsigned int frequencyModeVariable=0;
 int main(void) {
     lcdInit();
     lcdClear();
@@ -86,13 +90,15 @@ int main(void) {
     uartEnable();
     uartInterruptEnable();
     phaseAccumulatorReg=0;
-    frequencyReg=oneHertzValue*frequencyVariable;
+    userInterface();
     while(1){
-        //GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)]);
-        //phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
-        //frequencyVariable=10000/readADC();
-        userInterface();
-        _delay_ms(600);
+        if(interruptTriggered==1){
+            userInterface();
+            interruptTriggered=0;
+            phaseAccumulatorReg=0;
+        }
+          GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)]);
+          phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
     }
 }
 void portInit(){
@@ -103,8 +109,8 @@ void portInit(){
     HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
     HWREG(GPIO_PORTF_BASE + GPIO_O_CR) |= 0x01;
     HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = 0;
-    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0);
-    GPIOPadConfigSet(GPIO_PORTF_BASE ,GPIO_PIN_4|GPIO_PIN_0,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_2|GPIO_PIN_1);
+    GPIOPadConfigSet(GPIO_PORTF_BASE ,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_2|GPIO_PIN_1,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
 }
 void calculateSamples(){
     //calculateSamplesSquare();
@@ -213,11 +219,11 @@ void calculateSamplesTriangle(){
 }
 /****For Enabling Interrupt on PortA****/
 void interruptEnable(){
-    GPIOIntDisable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
-    GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0);
+    GPIOIntDisable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
+    GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
     GPIOIntRegister(GPIO_PORTF_BASE, interruptEncountered);
-    GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0,GPIO_FALLING_EDGE);
-    GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0);
+    GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2,GPIO_FALLING_EDGE);
+    GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
 }
 /**** ISR For External Interrupt on PortA************************
  * Check on which pin of the PORTA has encountered an interrupt
@@ -227,13 +233,25 @@ void interruptEnable(){
 void interruptEncountered(){
    if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_4){
        waveMode=(waveMode+1)%5;
+       interruptTriggered=1;
        GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4);
    }
    if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_0){
-       /*Your Logic*/
        frequencyMode=(frequencyMode+1)%5;
+       interruptTriggered=1;
        GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0);
    }
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_1){
+       frequencyModeChangeLarge=(frequencyModeChangeLarge+1)%11;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
+   }
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_2){
+       frequencyModeChangeFine=(frequencyModeChangeFine+1)%10;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_2);
+   }
+
 }
 void userInterface(){
     lcdClear();
@@ -253,20 +271,34 @@ void userInterface(){
     }
     lcdGotoxy(10,0);
     switch(frequencyMode){
-        case 0: lcdString(" 100Hz");
+        case 0:
+            lcdString(" 100Hz");
+            frequencyModeVariable=100;
             break;
-        case 1: lcdString("  1kHz");
+        case 1:
+            lcdString("  1kHz");
+            frequencyModeVariable=1000;
             break;
-        case 2: lcdString(" 10kHz");
+        case 2:
+            lcdString(" 10kHz");
+            frequencyModeVariable=10000;
             break;
-        case 3: lcdString("100kHz");
+        case 3:
+            lcdString("100kHz");
+            frequencyModeVariable=100000;
             break;
-        case 4: lcdString("  1MHz");
+        case 4:
+            lcdString("  1MHz");
+            frequencyModeVariable=1000000;
             break;
-        default: lcdString("Error");
+        default:
+            lcdString("Error");
             break;
     }
-    lcdGotoxy(0,1);
+    frequencyVariable=((frequencyModeVariable/10)*(frequencyModeChangeLarge))+((frequencyModeVariable/100)*(frequencyModeChangeFine));
+    frequencyReg=oneHertzValue*frequencyVariable;
+    lcdGotoxy(2,1);
     lcdString("F:");
     lcdInteger(frequencyVariable);
+    frequencyReg=oneHertzValue*frequencyVariable;
 }
