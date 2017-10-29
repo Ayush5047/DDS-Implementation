@@ -21,7 +21,7 @@
 #define FullScaleVal        127
 #define NumberOfSampleBits  8
 #define NumberOfSamples     (1<<NumberOfSampleBits)
-#define oneHertzValue       2368
+#define oneHertzValue       2690
 
 
 /*** All the required header files********/
@@ -43,6 +43,7 @@
 #include "driverlib/interrupt.h"
 
 #include "inc/tm4c123gh6pm.h"
+
 /************* function declarartions*******/
 void portInit();
 void calculateSamples();
@@ -65,16 +66,17 @@ void calculateSamplesRamp();
 void userInterface();
 
 /****** Array for Samples *****************/
-volatile unsigned char samples[NumberOfSamples];
+volatile unsigned int samples[NumberOfSamples];
 volatile unsigned char waveMode=0;
 volatile unsigned char frequencyMode=0;
 volatile unsigned char frequencyModeChangeLarge=0;
 volatile unsigned char frequencyModeChangeFine=0;
 volatile unsigned char interruptTriggered=0;
+volatile char incomingSamples=0;
 /***********Global Declaration*************/
 unsigned int phaseAccumulatorReg;
 unsigned long int frequencyReg;
-unsigned long int frequencyVariable=0;
+unsigned long int frequencyVariable=1;
 unsigned int frequencyModeVariable=0;
 int main(void) {
     lcdInit();
@@ -82,11 +84,10 @@ int main(void) {
     lcdGotoxy(1,0);
     lcdString("Wave Rider 1.0");
     _delay_ms(1000);
+    peripheralEnable();
     portInit();
     interruptEnable();
     calculateSamples();
-    peripheralEnable();
-    ADC0Enable();
     uartEnable();
     uartInterruptEnable();
     phaseAccumulatorReg=0;
@@ -95,7 +96,6 @@ int main(void) {
         if(interruptTriggered==1){
             userInterface();
             interruptTriggered=0;
-            phaseAccumulatorReg=0;
         }
           GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)]);
           phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
@@ -167,10 +167,12 @@ void uartInterruptEnable(){
  ****************************************/
 void UARTIntHandler(void){
     uint32_t ui32Status;
+    ch=UARTCharGet(UART0_BASE);
     ui32Status = UARTIntStatus(UART0_BASE, true); //get interrupt status
     UARTIntClear(UART0_BASE, ui32Status); //clear the asserted interrupts
+
     while(UARTCharsAvail(UART0_BASE)){ //loop while there are chars
-        UARTCharPut(UART0_BASE, UARTCharGet(UART0_BASE));
+        ch=UARTCharGet(UART0_BASE);
     }
 }
 void ADC0Enable(){
@@ -193,31 +195,35 @@ unsigned int readADC(){
         Avg = (ADC0Value[0] + ADC0Value[1] + ADC0Value[2] + ADC0Value[3] + 2)/4;
         return(Avg);
 }
-
 void calculateSamplesSquare(){
-    uint16_t i=0;
-    for(;i<NumberOfSamples;i++)
-        samples[i]=(i<(NumberOfSamples/2)?-127:128)+127;
-}
-void calculateSamplesSine(){
-    uint16_t i=0;
-    for(;i<NumberOfSamples;i++){
-        samples[i]=(unsigned char)(sin(i*6.28/NumberOfSamples)*127+127);
-    }
-}
-void calculateSamplesRamp(){
-    uint16_t i=0;
-    for(;i<NumberOfSamples;i++){
-        samples[i]=i;
-    }
-}
-void calculateSamplesTriangle(){
-    uint16_t i=0;
-    for(;i<NumberOfSamples;i++){
-        samples[i]=i<128?i*2:(510-2*i);
-    }
-}
-/****For Enabling Interrupt on PortA****/
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++)
+         samples[i]=(i<(NumberOfSamples/2)?-127:128)+127;
+ }
+ void calculateSamplesSine(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=(unsigned char)(sin(i*6.28/NumberOfSamples)*127+127);
+     }
+ }
+ void calculateSamplesRamp(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=i;
+     }
+ }
+ void calculateSamplesTriangle(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=i<128?i*2:(510-2*i);
+     }
+ }
+ void calculateSamplesImpulse(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++)
+          samples[i]=(i<(NumberOfSamples/10)?-127:128)+127;
+  }
+ /****For Enabling Interrupt on PortA****/
 void interruptEnable(){
     GPIOIntDisable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
     GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
@@ -226,7 +232,7 @@ void interruptEnable(){
     GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
 }
 /**** ISR For External Interrupt on PortA************************
- * Check on which pin of the PORTA has encountered an interrupt
+ * Check on which pin of the PORTF has encountered an interrupt
  * There is only one ISR for complete PORT
  * No two PORTs can have same ISR
  ****************************************************************/
@@ -257,16 +263,22 @@ void userInterface(){
     lcdClear();
     switch(waveMode){
         case 0: lcdString("Sine");
+            calculateSamplesSine();
             break;
         case 1: lcdString("Square");
+            calculateSamplesSquare();
             break;
         case 2: lcdString("Ramp");
+            calculateSamplesRamp();
             break;
         case 3: lcdString("Triangle");
+            calculateSamplesTriangle();
             break;
         case 4: lcdString("Impulse");
+            calculateSamplesImpulse();
             break;
         case 5: lcdString("Arbitrary");
+            calculateSamplesArbitrary();
             break;
     }
     lcdGotoxy(10,0);
@@ -291,9 +303,6 @@ void userInterface(){
             lcdString("  1MHz");
             frequencyModeVariable=1000000;
             break;
-        default:
-            lcdString("Error");
-            break;
     }
     frequencyVariable=((frequencyModeVariable/10)*(frequencyModeChangeLarge))+((frequencyModeVariable/100)*(frequencyModeChangeFine));
     frequencyReg=oneHertzValue*frequencyVariable;
@@ -301,4 +310,5 @@ void userInterface(){
     lcdString("F:");
     lcdInteger(frequencyVariable);
     frequencyReg=oneHertzValue*frequencyVariable;
+    _delay_ms(100);
 }

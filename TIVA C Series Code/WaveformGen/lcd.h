@@ -1,26 +1,26 @@
 #ifndef     lcdPORT
-#define     lcdPORT         GPIO_PORTD_BASE
+#define     lcdPORT         GPIO_PORTE_BASE
 #endif
 #ifndef     lcdDDR
-#define     lcdDDR          GPIO_PORTD_BASE
+#define     lcdDDR          SYSCTL_PERIPH_GPIOE
 #endif
 #ifndef     RS
-#define     RS              GPIO_PIN_6
+#define     RS              GPIO_PIN_0
 #endif
 #ifndef     EN
-#define     EN              GPIO_PIN_7
+#define     EN              GPIO_PIN_1
 #endif
 #ifndef     D4
-#define     D4              GPIO_PIN_0
+#define     D4              GPIO_PIN_2
 #endif
 #ifndef     D5
-#define     D5              GPIO_PIN_1
+#define     D5              GPIO_PIN_3
 #endif
 #ifndef     D6
-#define     D6              GPIO_PIN_2
+#define     D6              GPIO_PIN_4
 #endif
 #ifndef     D7
-#define     D7              GPIO_PIN_3
+#define     D7              GPIO_PIN_5
 #endif
 
 
@@ -38,10 +38,7 @@ void _delay_us(uint64_t delay);
 void func(long long a,char *arr);
 
 void lcdInit(){
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) |= 0xff;
-    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = 0;
+    SysCtlPeripheralEnable(lcdDDR);
     GPIOPinTypeGPIOOutput(lcdPORT,RS|EN|D4|D5|D6|D7);
     lcdCommand(0x02);//get the cursor to home
     lcdCommand(0x28);
@@ -63,15 +60,15 @@ void lcdInit(){
 void lcdCommand(unsigned char command){
     GPIOPinWrite(lcdPORT,RS|EN|D4|D5|D6|D7,0);
     _delay_ms(1);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command>>4);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command>>2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|EN,0x80);
+    GPIOPinWrite(lcdPORT,RS|EN,0x02);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,command<<2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|EN,0x80);
+    GPIOPinWrite(lcdPORT,RS|EN,0x02);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
     _delay_us(100);
@@ -79,15 +76,15 @@ void lcdCommand(unsigned char command){
 void lcdData(unsigned char data){
     lcdCheck();
     GPIOPinWrite(lcdPORT,RS|EN|D4|D5|D6|D7,0);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data>>4);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data>>2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|EN,0xC0);
+    GPIOPinWrite(lcdPORT,RS|EN,0x03);
     _delay_ms(1);
     GPIOPinWrite(lcdPORT,EN,0);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data);
+    GPIOPinWrite(lcdPORT,D4|D5|D6|D7,data<<2);
     _delay_us(100);
-    GPIOPinWrite(lcdPORT,RS|EN,0xC0);
+    GPIOPinWrite(lcdPORT,RS|EN,0x03);
     _delay_us(100);
     GPIOPinWrite(lcdPORT,EN,0);
     cursorPositionCheck=(cursorPositionCheck+1)%32;
