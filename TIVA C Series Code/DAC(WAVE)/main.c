@@ -17,21 +17,27 @@
 
  /**** macro definitions ******************/
 
- #define DACBit          8
- #define ZeroVal         1<<(DACBit-1)-1
- #define FullScaleVal    1<<(DACBit-1)-1
+ #define DACBit             8
+ #define ZeroVal            (1<<(DACBit-1))-1
+ #define FullScaleVal       (1<<(DACBit-1))-1
  #define NumberOfSampleBits 8
- #define NumberOfSamples (1<<NumberOfSampleBits)
-
-
+ #define NumberOfSamples    (1<<NumberOfSampleBits)
+ #define oneHertzValue      1181
  /*** All the required header files********/
- #include <stdint.h>
+
+#include <stdint.h>
  #include <stdbool.h>
  #include "inc/hw_types.h"
  #include "inc/hw_memmap.h"
  #include "driverlib/sysctl.h"
  #include "driverlib/gpio.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_gpio.h"
+#define TARGET_IS_BLIZZARD_RB1
+#include "driverlib/rom.h"
+
  #include<math.h>
+
  /************* function declarartions*******/
  void portInit();
  void calculateSamples();
@@ -39,56 +45,69 @@
  void calculateSamplesSine();
  void calculateSamplesTriangle();
  void calculateSamplesRamp();
+ void calculateSamplesImpulse();
+ void calculateSamplesArbitrary();
 
  /****** Array for Samples *****************/
- volatile unsigned char samples[NumberOfSamples];
+ volatile uint16_t samples[NumberOfSamples];
 
  /***********Global Declaration*************/
  uint32_t phaseAccumulatorReg;
- uint32_t frequencyReg;
+ uint64_t frequencyReg;
 
- int main(void) {
+#define GPIOA_DATA ((volatile uint32_t*)0x400043fc)
+#define GPIOB_DATA ((volatile uint32_t*)0x400053fc)
+ int main(void){
      calculateSamples();
      portInit();
      phaseAccumulatorReg=0;
-     frequencyReg=2348*160;
+     frequencyReg=oneHertzValue*1;
+     unsigned int i;
      while(1){
-         GPIOPinWrite(GPIO_PORTB_BASE,0xff,samples[phaseAccumulatorReg>>24]);
-        phaseAccumulatorReg=phaseAccumulatorReg+frequencyReg;
-   }
+         HWREG(0x40005000+(0xff<<2))=samples[(frequencyReg)>>24];
+     }
  }
  void portInit(){
      SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
      SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
      GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, 0xff);
-
+     /*SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, 0x0c);*/
  }
  void calculateSamples(){
      //calculateSamplesSquare();
      calculateSamplesSine();
      //calculateSamplesTriangle();
      //calculateSamplesRamp();
+     //calculateSamplesImpulse();
  }
  void calculateSamplesSquare(){
-     uint16_t i=0;
-     for(;i<NumberOfSamples;i++)
-         samples[i]=(i<(NumberOfSamples/2)?-127:128)+127;
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++)
+          samples[i]=(i<(NumberOfSamples/2)?-(FullScaleVal):FullScaleVal)+ZeroVal;
+  }
+  void calculateSamplesSine(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++){
+          samples[i]=(uint16_t)(sin(i*6.28/NumberOfSamples)*FullScaleVal+ZeroVal);
+      }
+  }
+  void calculateSamplesRamp(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++){
+          samples[i]=i;
+      }
+  }
+  void calculateSamplesTriangle(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++){
+          samples[i]=i<=FullScaleVal?i*2:2*(NumberOfSamples-1-i);
+      }
+  }
+  void calculateSamplesImpulse(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++)
+          samples[i]=(i<(NumberOfSamples/10)?(FullScaleVal):-FullScaleVal)+ZeroVal;
  }
- void calculateSamplesSine(){
-     uint16_t i=0;
-     for(;i<NumberOfSamples;i++){
-         samples[i]=(unsigned char)(sin(i*6.28/NumberOfSamples)*127+127);
-     }
- }
- void calculateSamplesRamp(){
-     uint16_t i=0;
-     for(;i<NumberOfSamples;i++){
-         samples[i]=i;
-     }
- }
- void calculateSamplesTriangle(){
-     uint16_t i=0;
-     for(;i<NumberOfSamples;i++){
-         samples[i]=i<125?i*2:(500-2*i);
-     }
+ void calculateSamplesArbitrary(){
  }

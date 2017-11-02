@@ -1,0 +1,86 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_gpio.h"
+#include <math.h>
+#include "driverlib/adc.h"
+
+#include "driverlib/uart.h"
+
+#include "driverlib/pin_map.h"
+#include "driverlib/debug.h"
+#include "driverlib/interrupt.h"
+
+#include "inc/tm4c123gh6pm.h"
+
+void uartEnable();
+void uartInterruptEnable();
+void UARTIntHandler(void);
+void tranString(char *,char);
+void uartInteger(int64_t number,char delimeter);
+int main(void) {
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+	return 0;
+}
+void uartEnable(){
+    GPIOPinConfigure(GPIO_PA0_U0RX);//Configure Pin A0 as RX of U0
+    GPIOPinConfigure(GPIO_PA1_U0TX);//Configure Pin A1 as TX of U0
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 9600,
+        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+}
+/***********************************************************************
+ * This function is used to send a string of character with a delimiter
+ ***********************************************************************/
+void tranString(char * data,char delimeter){
+    int k=0;
+    while(data[k]){
+        UARTCharPut(UART0_BASE,data[k++]);
+    }
+    UARTCharPut(UART0_BASE,delimeter);
+}
+void uartInteger(int64_t number,char delimeter){
+    char ch[20];
+    func(number,ch);
+    tranString(ch,delimeter);
+}
+/********************************************************************
+ * This function is used to enable UART0 Rx And Rx timeout Interrupt
+ *******************************************************************/
+void uartInterruptEnable(){
+    IntMasterEnable();//Enable processor interrupt
+    IntEnable(INT_UART0);//Enable interrupt on UART0
+    UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);//Enable RX interrupt ant rx Timeout interrupt
+}
+/****************************************
+ * Interrupt sub routine for Uart0
+ * Change the name of ISR in startup file
+ * Refer to manual for proper instruction
+ ****************************************/
+void UARTIntHandler(void){
+    uint32_t ui32Status;
+    unsigned char temp;
+    unsigned char sampleConfirmCheck=0;
+    ui32Status = UARTIntStatus(UART0_BASE, true); //get interrupt status
+    UARTIntClear(UART0_BASE, ui32Status); //clear the asserted interrupts
+    while(UARTCharsAvail(UART0_BASE)){ //loop while there are chars
+        if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==0){
+            temp=UARTCharGet(UART0_BASE);
+            sampleConfirmCheck=1;
+        }
+        else if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==1){
+            if(temp==UARTCharGet(UART0_BASE)){
+                samples[incomingSamples++]=UARTCharGet(UART0_BASE);
+                sampleConfirmCheck=0;
+                UARTCharPut(UART0_BASE,'S');
+            }
+            else{
+                sampleConfirmCheck=0;
+                UARTCharPut(UART0_BASE,'F');
+            }
+        }
+    }
+}

@@ -41,15 +41,15 @@ void calculateSamplesRamp();
 volatile unsigned char samples[NumberOfSamples];
 
 /***********Global Declaration*************/
-uint32_t phaseAccumulatorReg;
-uint32_t frequencyReg;
+unsigned int phaseAccumulatorReg;
+unsigned int frequencyReg;
 
 int main(void){
 	lcdInit();
     calculateSamples();
 	portInit();
 	phaseAccumulatorReg=0;
-	frequencyReg=12583;
+	frequencyReg=1050000;
 	lcdInteger(frequencyReg);
 	while (1){
 		//It takes 3 micro seconds for 1 sample.
@@ -57,8 +57,7 @@ int main(void){
 		//frequencyReg=0x800000 gives 666.667 Hz CLK(1500us)
 		//frequencyReg=0x080000 gives  40Hz CLK(25ms)
 		//frequencyReg=12583;
-		PORTA=samples[phaseAccumulatorReg>>24];
-		phaseAccumulatorReg=phaseAccumulatorReg+frequencyReg;
+		PORTA=samples[(phaseAccumulatorReg=phaseAccumulatorReg+frequencyReg)>>24];
 	}
 }
 
@@ -66,8 +65,6 @@ int main(void){
 
 void portInit(){
 	DDRA=0xff;
-	DDRB=0xff;
-	DDRC=0xff;
 }
 void calculateSamples(){
 	//calculateSamplesSquare();

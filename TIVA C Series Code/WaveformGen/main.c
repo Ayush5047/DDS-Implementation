@@ -21,7 +21,7 @@
 #define FullScaleVal        127
 #define NumberOfSampleBits  8
 #define NumberOfSamples     (1<<NumberOfSampleBits)
-#define oneHertzValue       1722
+#define oneHertzValue       1286
 #define GPIOB_DATA ((volatile uint32_t*)0x40005000)
 #define GPIOB_DIR ((volatile uint32_t*)0x40005400)
 
@@ -76,6 +76,8 @@ volatile unsigned char frequencyModeChangeLarge=0;
 volatile unsigned char frequencyModeChangeFine=0;
 volatile unsigned char interruptTriggered=0;
 volatile char incomingSamples=0;
+volatile unsigned char temp;
+volatile unsigned char sampleConfirmCheck=0;
 /***********Global Declaration*************/
 unsigned int phaseAccumulatorReg;
 unsigned long int frequencyReg;
@@ -95,10 +97,8 @@ int main(void) {
     uartInterruptEnable();
     phaseAccumulatorReg=0;
     userInterface();
-    while(1)
-    {
-        HWREG(GPIO_PORTB_BASE + (GPIO_O_DATA + (0xff << 2))) = samples[phaseAccumulatorReg>>(32-NumberOfSampleBits)];
-        phaseAccumulatorReg=(phaseAccumulatorReg)+frequencyReg;
+    while(1){
+        HWREG(0x40005000+(0xff<<2))=samples[(phaseAccumulatorReg+=frequencyReg)>>24];
     }
 }
 void portInit(){
@@ -118,7 +118,7 @@ void peripheralEnable(){
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
     ADCHardwareOversampleConfigure(ADC0_BASE, 64);
- }
+}
 /****************************************
  * This function is used to enable UART0
  * The baudrate is set at 9600
@@ -127,7 +127,7 @@ void uartEnable(){
     GPIOPinConfigure(GPIO_PA0_U0RX);//Configure Pin A0 as RX of U0
     GPIOPinConfigure(GPIO_PA1_U0TX);//Configure Pin A1 as TX of U0
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 9600,
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 115200,
         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 }
 /***********************************************************************
@@ -163,9 +163,22 @@ void UARTIntHandler(void){
     ui32Status = UARTIntStatus(UART0_BASE, true); //get interrupt status
     UARTIntClear(UART0_BASE, ui32Status); //clear the asserted interrupts
     while(UARTCharsAvail(UART0_BASE)){ //loop while there are chars
-        if(incomingSamples<NumberOfSamples&&waveMode==5)
-            samples[incomingSamples++] =UARTCharGet(UART0_BASE);
-    }
+            if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==0){
+                temp=UARTCharGet(UART0_BASE);
+                sampleConfirmCheck=1;
+            }
+            else if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==1){
+                if(temp==UARTCharGet(UART0_BASE)){
+                    samples[incomingSamples++]=temp;
+                    sampleConfirmCheck=0;
+                    UARTCharPut(UART0_BASE,'S');
+                }
+                else{
+                    sampleConfirmCheck=0;
+                    UARTCharPut(UART0_BASE,'F');
+                }
+            }
+        }
 }
 void ADC0Enable(){
     ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_PROCESSOR, 0);
