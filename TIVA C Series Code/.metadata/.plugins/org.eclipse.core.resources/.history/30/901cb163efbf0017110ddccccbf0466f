@@ -1,0 +1,273 @@
+/*****************************************************************
+ * SecondDraft
+ * This file is created to test code for low frequency waves
+ * Wave: Square,Sine,Ramp,Triangle Wave
+ * Frequency 100Hz
+ * DAC 8 bit Therefore values will range from 0-255
+ * Zero Value 127
+ * Full Scale Value 127
+ * No of samples 1000
+ * Created: 18/10/2017 3:02 PM
+ * Author : Ayush Gaurav
+ * B-Tech Final Year
+ * ECED
+ * MNNIT Allahabad
+ ****************************************************************/
+
+/**** macro definitions ******************/
+
+#define DACBit              8
+#define ZeroVal             127
+#define FullScaleVal        127
+#define NumberOfSampleBits  8
+#define NumberOfSamples     (1<<NumberOfSampleBits)
+#define oneHertzValue       1286
+#define GPIOB_DATA ((volatile uint32_t*)0x40005000)
+#define GPIOB_DIR ((volatile uint32_t*)0x40005400)
+
+/*** All the required header files********/
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_gpio.h"
+#include <math.h>
+#include "lcd.h"
+#include "driverlib/uart.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/debug.h"
+#include "driverlib/interrupt.h"
+#include "inc/tm4c123gh6pm.h"
+
+/************* function declarartions*******/
+void portInit();
+void peripheralEnable();
+void uartEnable();
+void uartInterruptEnable();
+void UARTIntHandler(void);
+void interruptEnable();
+void interruptEncountered();
+void calculateSamplesSquare();
+void calculateSamplesSine();
+void calculateSamplesTriangle();
+void calculateSamplesRamp();
+void calculateSamplesImpulse();
+void calculateSamplesArbitrary();
+void userInterface();
+
+/****** Array for Samples *****************/
+volatile unsigned char samples[NumberOfSamples];
+volatile unsigned char waveMode=0;
+volatile unsigned char frequencyMode=0;
+volatile unsigned char frequencyModeChangeLarge=0;
+volatile unsigned char frequencyModeChangeFine=0;
+volatile unsigned char interruptTriggered=0;
+volatile char incomingSamples=0;
+volatile unsigned char temp;
+volatile unsigned char sampleConfirmCheck=0;
+/***********Global Declaration*************/
+unsigned int phaseAccumulatorReg;
+unsigned int frequencyReg;
+unsigned int frequencyVariable=0;
+unsigned int frequencyModeVariable=0;
+
+int main(void) {
+    lcdInit();
+    lcdClear();
+    lcdGotoxy(1,0);
+    lcdString("Wave Rider 1.0");
+    _delay_ms(1000);
+    peripheralEnable();
+    portInit();
+    interruptEnable();
+    uartEnable();
+    uartInterruptEnable();
+    phaseAccumulatorReg=0;
+    userInterface();
+    while(1){
+        HWREG(0x40005000+(0xff<<2))=samples[(frequency+=frequencyReg)>>24];
+    }
+}
+void portInit(){
+    SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, 0xff);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) |= 0x01;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = 0;
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_2|GPIO_PIN_1);
+    GPIOPadConfigSet(GPIO_PORTF_BASE ,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_2|GPIO_PIN_1,GPIO_STRENGTH_2MA,GPIO_PIN_TYPE_STD_WPU);
+}
+void peripheralEnable(){
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+}
+/****************************************
+ * This function is used to enable UART0
+ * The baudrate is set at 9600
+ ****************************************/
+void uartEnable(){
+    GPIOPinConfigure(GPIO_PA0_U0RX);//Configure Pin A0 as RX of U0
+    GPIOPinConfigure(GPIO_PA1_U0TX);//Configure Pin A1 as TX of U0
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    UARTConfigSetExpClk(UART0_BASE, SysCtlClockGet(), 115200,
+        (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+}
+/********************************************************************
+ * This function is used to enable UART0 Rx And Rx timeout Interrupt
+ *******************************************************************/
+void uartInterruptEnable(){
+    IntMasterEnable();//Enable processor interrupt
+    IntEnable(INT_UART0);//Enable interrupt on UART0
+    UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT);//Enable RX interrupt ant rx Timeout interrupt
+}
+/****************************************
+ * Interrupt sub routine for Uart0
+ * Change the name of ISR in startup file
+ * Refer to manual for proper instruction
+ ****************************************/
+void UARTIntHandler(void){
+    uint32_t ui32Status;
+    ui32Status = UARTIntStatus(UART0_BASE, true); //get interrupt status
+    UARTIntClear(UART0_BASE, ui32Status); //clear the asserted interrupts
+    while(UARTCharsAvail(UART0_BASE)){ //loop while there are chars
+            if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==0){
+                temp=UARTCharGet(UART0_BASE);
+                sampleConfirmCheck=1;
+            }
+            else if(incomingSamples<NumberOfSamples&&waveMode==5&&sampleConfirmCheck==1){
+                if(temp==UARTCharGet(UART0_BASE)){
+                    samples[incomingSamples++]=temp;
+                    sampleConfirmCheck=0;
+                    UARTCharPut(UART0_BASE,'S');
+                }
+                else{
+                    sampleConfirmCheck=0;
+                    UARTCharPut(UART0_BASE,'F');
+                }
+            }
+        }
+}
+void calculateSamplesSquare(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++)
+         samples[i]=(i<(NumberOfSamples/2)?-(FullScaleVal):FullScaleVal)+ZeroVal;
+ }
+ void calculateSamplesSine(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=(unsigned char)(sin(i*6.28/NumberOfSamples)*FullScaleVal+ZeroVal);
+     }
+ }
+ void calculateSamplesRamp(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=i;
+     }
+ }
+ void calculateSamplesTriangle(){
+     uint16_t i=0;
+     for(;i<NumberOfSamples;i++){
+         samples[i]=i<=FullScaleVal?i*2:2*(NumberOfSamples-1-i);
+     }
+ }
+ void calculateSamplesImpulse(){
+      uint16_t i=0;
+      for(;i<NumberOfSamples;i++)
+          samples[i]=(i<(NumberOfSamples/10)?(FullScaleVal):-FullScaleVal)+ZeroVal;
+ }
+ void calculateSamplesArbitrary(){
+  }
+ /****For Enabling Interrupt on PortA****/
+void interruptEnable(){
+    GPIOIntDisable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
+    GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
+    GPIOIntRegister(GPIO_PORTF_BASE, interruptEncountered);
+    GPIOIntTypeSet(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2,GPIO_FALLING_EDGE);
+    GPIOIntEnable(GPIO_PORTF_BASE,GPIO_PIN_4|GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2);
+}
+/**** ISR For External Interrupt on PortA************************
+ * Check on which pin of the PORTF has encountered an interrupt
+ * There is only one ISR for complete PORT
+ * No two PORTs can have same ISR
+ ****************************************************************/
+void interruptEncountered(){
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_4){
+       waveMode=(waveMode+1)%6;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_4);
+   }
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_0){
+       frequencyMode=(frequencyMode+1)%5;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_0);
+   }
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_1){
+       frequencyModeChangeLarge=(frequencyModeChangeLarge+1)%11;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
+   }
+   if(GPIOIntStatus(GPIO_PORTF_BASE, false)&GPIO_PIN_2){
+       frequencyModeChangeFine=(frequencyModeChangeFine+1)%10;
+       interruptTriggered=1;
+       GPIOIntClear(GPIO_PORTF_BASE, GPIO_PIN_2);
+   }
+   userInterface();
+}
+void userInterface(){
+    lcdClear();
+    switch(waveMode){
+        case 0: lcdString("Sine");
+            calculateSamplesSine();
+            break;
+        case 1: lcdString("Square");
+            calculateSamplesSquare();
+            break;
+        case 2: lcdString("Ramp");
+            calculateSamplesRamp();
+            break;
+        case 3: lcdString("Triangle");
+            calculateSamplesTriangle();
+            break;
+        case 4: lcdString("Impulse");
+            calculateSamplesImpulse();
+            break;
+        case 5: lcdString("Arbitrary");
+            calculateSamplesArbitrary();
+            break;
+    }
+    lcdGotoxy(10,0);
+    switch(frequencyMode){
+        case 0:
+            lcdString(" 100Hz");
+            frequencyModeVariable=100;
+            break;
+        case 1:
+            lcdString("  1kHz");
+            frequencyModeVariable=1000;
+            break;
+        case 2:
+            lcdString(" 10kHz");
+            frequencyModeVariable=10000;
+            break;
+        case 3:
+            lcdString("100kHz");
+            frequencyModeVariable=100000;
+            break;
+        case 4:
+            lcdString("  1MHz");
+            frequencyModeVariable=1000000;
+            break;
+    }
+    frequencyVariable=((frequencyModeVariable/10)*(frequencyModeChangeLarge))+((frequencyModeVariable/100)*(frequencyModeChangeFine));
+    frequencyReg=oneHertzValue*frequencyVariable;
+    lcdGotoxy(2,1);
+    lcdString("F:");
+    lcdInteger(frequencyVariable);
+    frequencyReg=oneHertzValue*frequencyVariable;
+    _delay_ms(10);
+}

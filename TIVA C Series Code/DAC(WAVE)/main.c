@@ -22,7 +22,8 @@
  #define FullScaleVal       (1<<(DACBit-1))-1
  #define NumberOfSampleBits 8
  #define NumberOfSamples    (1<<NumberOfSampleBits)
- #define oneHertzValue      1181
+ #define oneHertzValue      968
+//#define oneHertzValue      1<<24
  /*** All the required header files********/
 
 #include <stdint.h>
@@ -49,23 +50,22 @@
  void calculateSamplesArbitrary();
 
  /****** Array for Samples *****************/
- volatile uint16_t samples[NumberOfSamples];
-
- /***********Global Declaration*************/
- uint32_t phaseAccumulatorReg;
- uint64_t frequencyReg;
 
 #define GPIOA_DATA ((volatile uint32_t*)0x400043fc)
 #define GPIOB_DATA ((volatile uint32_t*)0x400053fc)
+#define RAM_ADD ((volatile char*)0x20000200)
+ volatile char samples[NumberOfSamples];
+
  int main(void){
+     uint32_t phaseAccumulatorReg;
+     uint32_t frequencyReg;
      calculateSamples();
      portInit();
      phaseAccumulatorReg=0;
-     frequencyReg=oneHertzValue*1;
-     unsigned int i;
-     while(1){
-         HWREG(0x40005000+(0xff<<2))=samples[(frequencyReg)>>24];
-     }
+     frequencyReg=oneHertzValue*500000;
+         while(1){
+               HWREG(0x400053fc)=*(samples+((phaseAccumulatorReg+=frequencyReg)>>24));
+         }
  }
  void portInit(){
      SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
@@ -76,9 +76,9 @@
  }
  void calculateSamples(){
      //calculateSamplesSquare();
-     calculateSamplesSine();
+     //calculateSamplesSine();
      //calculateSamplesTriangle();
-     //calculateSamplesRamp();
+     calculateSamplesRamp();
      //calculateSamplesImpulse();
  }
  void calculateSamplesSquare(){
